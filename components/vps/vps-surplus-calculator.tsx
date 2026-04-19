@@ -47,6 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { VpsResultPanel } from "@/components/vps/vps-result-panel"
 import {
   calculateVpsSurplus,
@@ -314,6 +315,7 @@ function CalculatorResult({ control }: CalculatorResultProps) {
           input={validInput}
           renewalCurrency={renewalCurrency}
           captureRef={resultCardRef}
+          onPreviewImage={undefined}
           onDownloadImage={actionsDisabled ? undefined : handleDownloadImage}
           onCopyImage={actionsDisabled ? undefined : handleCopyImage}
           onCopyMarkdown={actionsDisabled ? undefined : handleCopyMarkdown}
@@ -350,37 +352,44 @@ export function VpsSurplusCalculator() {
   })
   const dateRangeInvalid = Boolean(expiryDate && tradeDate && tradeDate > expiryDate)
   const actionButtonClassName = "w-full sm:w-auto"
+  const detailItemClassName = "flex flex-col gap-2"
+  const sectionClassName = "flex flex-col gap-4"
+  const bottomSectionClassName = "flex flex-col gap-4"
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(24rem,0.8fr)]">
-      <Card>
+    <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[minmax(23rem,30rem)_minmax(23rem,30rem)] lg:justify-center lg:items-stretch">
+      <Card className="h-full">
         <CardHeader>
           <CardTitle>参数输入</CardTitle>
           <CardDescription>
-            续费金额支持多币种输入，交易金额默认按人民币输入，结果会同时展示两种币种视角。
+            续费金额支持多币种；交易金额默认人民币；结果同时展示人民币和续费币种视角。
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <FieldGroup>
-            <div className="grid gap-5 md:grid-cols-2">
-              <Field data-invalid={!!form.formState.errors.exchangeRate || undefined}>
-                <FieldLabel htmlFor="exchangeRate">
-                  <ArrowLeftRight />
-                  汇率
+        <CardContent className="flex flex-1 flex-col gap-4">
+          <FieldGroup className="flex flex-1 flex-col justify-between gap-4">
+            <div className={sectionClassName}>
+              <Field className={detailItemClassName} data-invalid={!!expiryDateError || undefined}>
+                <FieldLabel htmlFor="expiryDate">
+                  <CalendarClock />
+                  到期日期
                 </FieldLabel>
-                <Input
-                  id="exchangeRate"
-                  type="number"
-                  step="0.000001"
-                  min="0"
-                  disabled={renewalCurrency === "CNY"}
-                  aria-invalid={!!form.formState.errors.exchangeRate}
-                  {...form.register("exchangeRate", { valueAsNumber: true })}
+                <Controller
+                  control={form.control}
+                  name="expiryDate"
+                  render={({ field }) => (
+                    <DatePickerControl
+                      id={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="YYYY-MM-DD"
+                      ariaInvalid={!!expiryDateError}
+                    />
+                  )}
                 />
-                <FieldError errors={[form.formState.errors.exchangeRate]} />
+                <FieldError errors={[expiryDateError]} />
               </Field>
 
-              <Field>
+              <Field className={detailItemClassName}>
                 <FieldLabel htmlFor="renewalCycle">
                   <CalendarSync />
                   续费周期
@@ -406,54 +415,8 @@ export function VpsSurplusCalculator() {
                   )}
                 />
               </Field>
-            </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <Field data-invalid={!!expiryDateError || undefined}>
-                <FieldLabel htmlFor="expiryDate">
-                  <CalendarClock />
-                  到期日期
-                </FieldLabel>
-                <Controller
-                  control={form.control}
-                  name="expiryDate"
-                  render={({ field }) => (
-                    <DatePickerControl
-                      id={field.name}
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="YYYY-MM-DD"
-                      ariaInvalid={!!expiryDateError}
-                    />
-                  )}
-                />
-                <FieldError errors={[expiryDateError]} />
-              </Field>
-
-              <Field data-invalid={!!tradeDateError || dateRangeInvalid || undefined}>
-                <FieldLabel htmlFor="tradeDate">
-                  <CalendarSearch />
-                  交易日期
-                </FieldLabel>
-                <Controller
-                  control={form.control}
-                  name="tradeDate"
-                  render={({ field }) => (
-                    <DatePickerControl
-                      id={field.name}
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="YYYY-MM-DD"
-                      ariaInvalid={!!tradeDateError || dateRangeInvalid}
-                    />
-                  )}
-                />
-                <FieldError errors={[tradeDateError, dateRangeInvalid ? { message: "交易日期不能晚于到期日期" } : undefined]} />
-              </Field>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <Field data-invalid={!!form.formState.errors.renewalAmount || undefined}>
+              <Field className={detailItemClassName} data-invalid={!!form.formState.errors.renewalAmount || undefined}>
                 <FieldLabel htmlFor="renewalAmount">
                   <HandCoins />
                   续费金额
@@ -509,8 +472,50 @@ export function VpsSurplusCalculator() {
                 </div>
                 <FieldError errors={[form.formState.errors.renewalAmount]} />
               </Field>
+            </div>
 
-              <Field data-invalid={!!form.formState.errors.transactionAmount || undefined}>
+            <Separator />
+
+            <div className={bottomSectionClassName}>
+              <Field className={detailItemClassName} data-invalid={!!tradeDateError || dateRangeInvalid || undefined}>
+                <FieldLabel htmlFor="tradeDate">
+                  <CalendarSearch />
+                  交易日期
+                </FieldLabel>
+                <Controller
+                  control={form.control}
+                  name="tradeDate"
+                  render={({ field }) => (
+                    <DatePickerControl
+                      id={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="YYYY-MM-DD"
+                      ariaInvalid={!!tradeDateError || dateRangeInvalid}
+                    />
+                  )}
+                />
+                <FieldError errors={[tradeDateError, dateRangeInvalid ? { message: "交易日期不能晚于到期日期" } : undefined]} />
+              </Field>
+
+              <Field className={detailItemClassName} data-invalid={!!form.formState.errors.exchangeRate || undefined}>
+                <FieldLabel htmlFor="exchangeRate">
+                  <ArrowLeftRight />
+                  汇率
+                </FieldLabel>
+                <Input
+                  id="exchangeRate"
+                  type="number"
+                  step="0.000001"
+                  min="0"
+                  disabled={renewalCurrency === "CNY"}
+                  aria-invalid={!!form.formState.errors.exchangeRate}
+                  {...form.register("exchangeRate", { valueAsNumber: true })}
+                />
+                <FieldError errors={[form.formState.errors.exchangeRate]} />
+              </Field>
+
+              <Field className={detailItemClassName} data-invalid={!!form.formState.errors.transactionAmount || undefined}>
                 <FieldLabel htmlFor="transactionAmount">
                   <BadgeDollarSign />
                   交易金额
@@ -541,15 +546,15 @@ export function VpsSurplusCalculator() {
                 </div>
                 <FieldError errors={[form.formState.errors.transactionAmount]} />
               </Field>
+
+              <div className="pt-1">
+                <Button type="button" className={actionButtonClassName} onClick={() => form.reset(getDefaultValues())}>
+                  <RefreshCw data-icon="inline-start" />
+                  重置默认值
+                </Button>
+              </div>
             </div>
           </FieldGroup>
-
-          <div className="flex flex-wrap gap-3">
-            <Button type="button" className={actionButtonClassName} onClick={() => form.reset(getDefaultValues())}>
-              <RefreshCw data-icon="inline-start" />
-              重置默认值
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

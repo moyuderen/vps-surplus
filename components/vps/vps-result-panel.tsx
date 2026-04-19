@@ -7,6 +7,7 @@ import {
   CalendarSync,
   Copy,
   Download,
+  Eye,
   FileText,
   HandCoins,
   Minus,
@@ -38,6 +39,7 @@ type VpsResultPanelProps = {
   input: VpsCalculationInput | null
   renewalCurrency: SupportedCurrency
   captureRef?: Ref<HTMLDivElement>
+  onPreviewImage?: () => void
   onDownloadImage?: () => void
   onCopyImage?: () => void
   onCopyMarkdown?: () => void
@@ -54,7 +56,11 @@ const valueClassName = "text-sm font-medium text-foreground sm:text-base"
 const moneyValueGroupClassName = "flex flex-wrap items-baseline gap-x-2 gap-y-1"
 const primaryMoneyClassName = "text-sm font-medium text-foreground sm:text-base"
 const secondaryMoneyClassName = "text-xs text-muted-foreground"
-const actionButtonClassName = "[&_svg:not([class*='size-'])]:size-3.5"
+const remainingValuePrimaryMoneyClassName = "text-sm font-medium text-sky-700 sm:text-base dark:text-sky-300"
+const remainingValueSecondaryMoneyClassName = "text-xs text-sky-700/75 dark:text-sky-300/75"
+const transactionPrimaryMoneyClassName = "text-sm font-medium text-amber-600 sm:text-base dark:text-amber-400"
+const transactionSecondaryMoneyClassName = "text-xs text-amber-700/80 dark:text-amber-300/80"
+const actionButtonClassName = "flex-1 [&_svg:not([class*='size-'])]:size-3.5"
 
 function formatRemainingDaysBreakdown(startDateValue: string, endDateValue: string) {
   const startDate = parseDateOnly(startDateValue)
@@ -87,6 +93,7 @@ export function VpsResultPanel({
   input,
   renewalCurrency,
   captureRef,
+  onPreviewImage,
   onDownloadImage,
   onCopyImage,
   onCopyMarkdown,
@@ -137,7 +144,7 @@ export function VpsResultPanel({
           <CardHeader>
             <CardTitle>计算结果</CardTitle>
             <CardDescription>
-              以到期日期为本周期结束日，按所选自然周期向前回推起始日估算剩余价值。
+              以到期日为周期结束日，按所选自然周期回推起始日估算剩余价值。
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -187,8 +194,8 @@ export function VpsResultPanel({
                     剩余价值
                   </span>
                   <div className={moneyValueGroupClassName}>
-                    <span className={primaryMoneyClassName}>{remainingValueInCnyLabel}</span>
-                    <span className={secondaryMoneyClassName}>{remainingValueInRenewalCurrencyLabel}</span>
+                    <span className={remainingValuePrimaryMoneyClassName}>{remainingValueInCnyLabel}</span>
+                    <span className={remainingValueSecondaryMoneyClassName}>{remainingValueInRenewalCurrencyLabel}</span>
                   </div>
                 </div>
                 <div className={detailItemClassName}>
@@ -210,8 +217,8 @@ export function VpsResultPanel({
                   交易金额
                 </span>
                 <div className={moneyValueGroupClassName}>
-                  <span className={primaryMoneyClassName}>{transactionAmountInCnyLabel}</span>
-                  <span className={secondaryMoneyClassName}>{transactionAmountInRenewalCurrencyLabel}</span>
+                  <span className={transactionPrimaryMoneyClassName}>{transactionAmountInCnyLabel}</span>
+                  <span className={transactionSecondaryMoneyClassName}>{transactionAmountInRenewalCurrencyLabel}</span>
                 </div>
               </div>
               <div
@@ -267,19 +274,25 @@ export function VpsResultPanel({
       </div>
 
       {result ? (
-        <div className="flex flex-wrap gap-3">
-          <Button type="button" className={actionButtonClassName} onClick={onDownloadImage} disabled={isDownloadingImage}>
-            <Download data-icon="inline-start" />
-            {isDownloadingImage ? "下载中..." : "下载图片"}
-          </Button>
-          <Button type="button" className={actionButtonClassName} onClick={onCopyImage} disabled={isCopyingImage}>
-            <Copy data-icon="inline-start" />
-            {isCopyingImage ? "复制中..." : "复制图片"}
-          </Button>
-          <Button type="button" className={actionButtonClassName} onClick={onCopyMarkdown} disabled={isCopyingMarkdown}>
-            <FileText data-icon="inline-start" />
-            {isCopyingMarkdown ? "复制中..." : "复制 Markdown"}
-          </Button>
+        <div className="rounded-none border border-border px-3 py-3 sm:px-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Button type="button" className={actionButtonClassName} onClick={onPreviewImage}>
+              <Eye data-icon="inline-start" />
+              预览图片
+            </Button>
+            <Button type="button" className={actionButtonClassName} onClick={onDownloadImage} disabled={isDownloadingImage}>
+              <Download data-icon="inline-start" />
+              {isDownloadingImage ? "下载中..." : "下载图片"}
+            </Button>
+            <Button type="button" className={actionButtonClassName} onClick={onCopyImage} disabled={isCopyingImage}>
+              <Copy data-icon="inline-start" />
+              {isCopyingImage ? "复制中..." : "复制图片"}
+            </Button>
+            <Button type="button" className={actionButtonClassName} onClick={onCopyMarkdown} disabled={isCopyingMarkdown}>
+              <FileText data-icon="inline-start" />
+              {isCopyingMarkdown ? "复制中..." : "复制为 MD"}
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>
