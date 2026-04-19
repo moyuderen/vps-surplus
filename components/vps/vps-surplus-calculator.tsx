@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
+import { toBlob } from "html-to-image"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   ArrowLeftRight,
@@ -13,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { Controller, useForm, useWatch, type Control } from "react-hook-form"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Calendar as DateCalendar } from "@/components/ui/calendar"
@@ -50,15 +52,19 @@ import {
   calculateVpsSurplus,
   getDefaultExpiryDate,
   getDefaultTradeDate,
+  type VpsCalculationResult,
 } from "@/lib/vps/calculator"
 import {
+  CURRENCY_LABELS,
   CURRENCY_SYMBOLS,
   DEFAULT_VALUES,
+  RENEWAL_CYCLES,
   RENEWAL_CYCLE_OPTIONS,
   SUPPORTED_CURRENCIES,
   type SupportedCurrency,
 } from "@/lib/vps/constants"
 import { formatDateValue, getDateFromValue } from "@/lib/vps/date"
+import { formatCurrency, formatNumber } from "@/lib/vps/formatters"
 import { vpsFormSchema, type VpsFormValues } from "@/lib/vps/schema"
 import { cn } from "@/lib/utils"
 
@@ -72,6 +78,44 @@ function getDefaultValues(): VpsFormValues {
     transactionAmount: DEFAULT_VALUES.transactionAmount,
     renewalCycle: DEFAULT_VALUES.renewalCycle,
   }
+}
+
+function getResultCaptureFileName() {
+  return `vps-result-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.png`
+}
+
+async function captureResultBlob(node: HTMLElement) {
+  return toBlob(node, {
+    pixelRatio: 2,
+    backgroundColor: "#ffffff",
+  })
+}
+
+function buildResultMarkdown(input: VpsFormValues, result: VpsCalculationResult) {
+  const effectiveExchangeRate = input.renewalCurrency === "CNY" ? 1 : input.exchangeRate
+  const renewalCycleLabel = RENEWAL_CYCLES[input.renewalCycle].label
+  const renewalAmountInCny = formatCurrency(input.renewalAmount * effectiveExchangeRate, "CNY")
+  const renewalAmountInRenewalCurrency = formatCurrency(input.renewalAmount, input.renewalCurrency)
+  const transactionAmountInCny = formatCurrency(input.transactionAmount, "CNY")
+  const transactionAmountInRenewalCurrency = formatCurrency(input.transactionAmount / effectiveExchangeRate, input.renewalCurrency)
+  const premiumLabel =
+    result.premiumAmountInCny > 0 ? "溢价" : result.premiumAmountInCny < 0 ? "折价" : "原价"
+
+  return [
+    "# VPS 计算结果",
+    "",
+    "## 基础信息",
+    `- 到期日期：${input.expiryDate}`,
+    `- 续费周期：${renewalCycleLabel}`,
+    `- 续费金额：${renewalAmountInCny} ${renewalAmountInRenewalCurrency}`,
+    `- 剩余天数：${formatNumber(result.remainingDays, 0)}`,
+    `- 剩余价值：${formatCurrency(result.remainingValueInCny, "CNY")} ${formatCurrency(result.remainingValueInRenewalCurrency, input.renewalCurrency)}`,
+    `- 汇率：1 ${CURRENCY_LABELS[input.renewalCurrency]} = ${formatNumber(effectiveExchangeRate, 6)} 人民币`,
+    "",
+    "## 交易信息",
+    `- 交易金额：${transactionAmountInCny} ${transactionAmountInRenewalCurrency}`,
+    `- ${premiumLabel}：${formatCurrency(result.premiumAmountInCny, "CNY")} ${formatCurrency(result.premiumAmountInRenewalCurrency, input.renewalCurrency)}`,
+  ].join("\n")
 }
 
 type DatePickerControlProps = {
@@ -124,26 +168,162 @@ type CalculatorResultProps = {
   control: Control<VpsFormValues>
 }
 
+type ActionPendingState = {
+  downloadImage: boolean
+  copyImage: boolean
+  copyMarkdown: boolean
+}
+
 function CalculatorResult({ control }: CalculatorResultProps) {
   const values = useWatch({ control })
   const renewalCurrency = values.renewalCurrency ?? DEFAULT_VALUES.renewalCurrency
   const dateRangeInvalid = Boolean(values.expiryDate && values.tradeDate && values.tradeDate > values.expiryDate)
+  const resultCardRef = useRef<HTMLDivElement>(null)
+  const [actionPending, setActionPending] = useState<ActionPendingState>({
+    downloadImage: false,
+    copyImage: false,
+    copyMarkdown: false,
+  })
+  const parsedValues = useMemo(() => {
+    const parsed = vpsFormSchema.safeParse(values)
+    return parsed.success ? parsed.data : null
+  }, [values])
 
   const result = useMemo(() => {
-    const parsed = vpsFormSchema.safeParse(values)
-
-    if (!parsed.success) {
+    if (!parsedValues) {
       return null
     }
 
     try {
-      return calculateVpsSurplus(parsed.data)
+      return calculateVpsSurplus(parsedValues)
     } catch {
       return null
     }
-  }, [values])
+  }, [parsedValues])
 
-  return <VpsResultPanel result={dateRangeInvalid ? null : result} renewalCurrency={renewalCurrency} />
+  const validInput = dateRangeInvalid ? null : parsedValues
+  const validResult = dateRangeInvalid ? null : result
+  const markdown = useMemo(
+    () => (validInput && validResult ? buildResultMarkdown(validInput, validResult) : ""),
+    [validInput, validResult],
+  )
+
+  async function runAction(
+    key: keyof ActionPendingState,
+    action: () => Promise<void>,
+    successMessage: string,
+  ) {
+    setActionPending((current) => ({ ...current, [key]: true }))
+
+    try {
+      await action()
+      toast.success(successMessage)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "操作失败，请重试")
+    } finally {
+      setActionPending((current) => ({ ...current, [key]: false }))
+    }
+  }
+
+  async function handleDownloadImage() {
+    const node = resultCardRef.current
+
+    if (!node) {
+      toast.error("结果区域尚未准备好")
+      return
+    }
+
+    await runAction(
+      "downloadImage",
+      async () => {
+        const blob = await captureResultBlob(node)
+
+        if (!blob) {
+          throw new Error("图片生成失败")
+        }
+
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement("a")
+        anchor.href = url
+        anchor.download = getResultCaptureFileName()
+        anchor.click()
+        URL.revokeObjectURL(url)
+      },
+      "图片已下载",
+    )
+  }
+
+  async function handleCopyImage() {
+    const node = resultCardRef.current
+
+    if (!node) {
+      toast.error("结果区域尚未准备好")
+      return
+    }
+
+    await runAction(
+      "copyImage",
+      async () => {
+        if (
+          typeof navigator === "undefined" ||
+          !navigator.clipboard ||
+          typeof navigator.clipboard.write !== "function" ||
+          typeof ClipboardItem === "undefined"
+        ) {
+          throw new Error("当前浏览器不支持复制图片，请使用下载图片")
+        }
+
+        const blob = await captureResultBlob(node)
+
+        if (!blob) {
+          throw new Error("图片生成失败")
+        }
+
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
+      },
+      "图片已复制",
+    )
+  }
+
+  async function handleCopyMarkdown() {
+    if (!markdown) {
+      toast.error("当前没有可复制的 Markdown")
+      return
+    }
+
+    await runAction(
+      "copyMarkdown",
+      async () => {
+        if (typeof navigator === "undefined" || !navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("当前浏览器不支持复制 Markdown")
+        }
+
+        await navigator.clipboard.writeText(markdown)
+      },
+      "Markdown 已复制",
+    )
+  }
+
+  const actionsDisabled = !validInput || !validResult
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-none bg-background">
+        <VpsResultPanel
+          result={validResult}
+          input={validInput}
+          renewalCurrency={renewalCurrency}
+          captureRef={resultCardRef}
+          onDownloadImage={actionsDisabled ? undefined : handleDownloadImage}
+          onCopyImage={actionsDisabled ? undefined : handleCopyImage}
+          onCopyMarkdown={actionsDisabled ? undefined : handleCopyMarkdown}
+          isDownloadingImage={actionPending.downloadImage}
+          isCopyingImage={actionPending.copyImage}
+          isCopyingMarkdown={actionPending.copyMarkdown}
+        />
+      </div>
+    </div>
+  )
 }
 
 export function VpsSurplusCalculator() {
@@ -169,6 +349,7 @@ export function VpsSurplusCalculator() {
     name: "tradeDate",
   })
   const dateRangeInvalid = Boolean(expiryDate && tradeDate && tradeDate > expiryDate)
+  const actionButtonClassName = "w-full sm:w-auto"
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(24rem,0.8fr)]">
@@ -364,7 +545,7 @@ export function VpsSurplusCalculator() {
           </FieldGroup>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={() => form.reset(getDefaultValues())}>
+            <Button type="button" className={actionButtonClassName} onClick={() => form.reset(getDefaultValues())}>
               <RefreshCw data-icon="inline-start" />
               重置默认值
             </Button>

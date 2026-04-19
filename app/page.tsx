@@ -59,7 +59,10 @@ function serializeJsonLd(value: unknown) {
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col bg-muted/30">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <section className="flex flex-col gap-4">

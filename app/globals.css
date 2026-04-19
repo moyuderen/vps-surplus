@@ -29,6 +29,7 @@
 
   /* Primary */
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--on-primary);
   --color-on-primary: var(--on-primary);
   --color-primary-container: var(--primary-container);
   --color-on-primary-container: var(--on-primary-container);
@@ -39,6 +40,7 @@
 
   /* Secondary */
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--on-secondary);
   --color-on-secondary: var(--on-secondary);
   --color-secondary-container: var(--secondary-container);
   --color-on-secondary-container: var(--on-secondary-container);
@@ -82,9 +84,10 @@
   --color-popover-foreground: var(--on-surface);
   --color-muted: var(--surface-container);
   --color-muted-foreground: var(--on-surface-variant);
-  --color-accent: var(--secondary-container);
-  --color-accent-foreground: var(--on-secondary-container);
+  --color-accent: var(--surface-container-high);
+  --color-accent-foreground: var(--on-surface);
   --color-destructive: var(--error);
+  --color-destructive-foreground: var(--on-error);
   --color-border: var(--outline-variant);
   --color-input: var(--outline-variant);
   --color-ring: var(--primary);
