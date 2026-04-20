@@ -43,6 +43,7 @@ type VpsResultPanelProps = {
   onDownloadImage?: () => void
   onCopyImage?: () => void
   onCopyMarkdown?: () => void
+  isPreviewingImage?: boolean
   isDownloadingImage?: boolean
   isCopyingImage?: boolean
   isCopyingMarkdown?: boolean
@@ -97,6 +98,7 @@ export function VpsResultPanel({
   onDownloadImage,
   onCopyImage,
   onCopyMarkdown,
+  isPreviewingImage = false,
   isDownloadingImage = false,
   isCopyingImage = false,
   isCopyingMarkdown = false,
@@ -276,9 +278,9 @@ export function VpsResultPanel({
       {result ? (
         <div className="rounded-none border border-border px-3 py-3 sm:px-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Button type="button" className={actionButtonClassName} onClick={onPreviewImage}>
+            <Button type="button" className={actionButtonClassName} onClick={onPreviewImage} disabled={isPreviewingImage}>
               <Eye data-icon="inline-start" />
-              预览图片
+              {isPreviewingImage ? "加载中..." : "预览图片"}
             </Button>
             <Button type="button" className={actionButtonClassName} onClick={onDownloadImage} disabled={isDownloadingImage}>
               <Download data-icon="inline-start" />

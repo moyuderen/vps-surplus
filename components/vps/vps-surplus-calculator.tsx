@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react"
 import { toBlob } from "html-to-image"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeftRight,
   BadgeDollarSign,
@@ -12,6 +13,9 @@ import {
   CalendarSync,
   HandCoins,
   RefreshCw,
+  X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react"
 import { Controller, useForm, useWatch, type Control } from "react-hook-form"
 import { toast } from "sonner"
@@ -173,6 +177,95 @@ type ActionPendingState = {
   downloadImage: boolean
   copyImage: boolean
   copyMarkdown: boolean
+  previewImage: boolean
+}
+
+type ImagePreviewDialogProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  imageUrl: string | null
+}
+
+function ImagePreviewDialog({ open, onOpenChange, imageUrl }: ImagePreviewDialogProps) {
+  const [scale, setScale] = useState(1)
+
+  function handleZoomIn() {
+    setScale((s) => Math.min(s + 0.25, 3))
+  }
+
+  function handleZoomOut() {
+    setScale((s) => Math.max(s - 0.25, 0.25))
+  }
+
+  function handleClose() {
+    setScale(1)
+    onOpenChange(false)
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative flex h-full w-full items-center justify-center p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-4 right-4 z-10 flex items-center gap-2 rounded-lg bg-black/60 px-3 py-2 backdrop-blur-md">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleZoomOut}
+                disabled={scale <= 0.25}
+                className="text-white hover:bg-white/20 hover:text-white"
+              >
+                <ZoomOut />
+              </Button>
+              <span className="min-w-12 text-center text-sm text-white">
+                {Math.round(scale * 100)}%
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleZoomIn}
+                disabled={scale >= 3}
+                className="text-white hover:bg-white/20 hover:text-white"
+              >
+                <ZoomIn />
+              </Button>
+              <div className="mx-1 h-4 w-px bg-white/30" />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleClose}
+                className="text-white hover:bg-white/20 hover:text-white"
+              >
+                <X />
+              </Button>
+            </div>
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt="预览图片"
+                className="max-h-full max-w-full object-contain transition-transform duration-200"
+                style={{ transform: `scale(${scale})` }}
+              />
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 function CalculatorResult({ control }: CalculatorResultProps) {
@@ -184,7 +277,10 @@ function CalculatorResult({ control }: CalculatorResultProps) {
     downloadImage: false,
     copyImage: false,
     copyMarkdown: false,
+    previewImage: false,
   })
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const parsedValues = useMemo(() => {
     const parsed = vpsFormSchema.safeParse(values)
     return parsed.success ? parsed.data : null
@@ -305,6 +401,46 @@ function CalculatorResult({ control }: CalculatorResultProps) {
     )
   }
 
+  async function handlePreviewImage() {
+    const node = resultCardRef.current
+
+    if (!node) {
+      toast.error("结果区域尚未准备好")
+      return
+    }
+
+    setActionPending((current) => ({ ...current, previewImage: true }))
+
+    try {
+      const blob = await captureResultBlob(node)
+
+      if (!blob) {
+        toast.error("图片生成失败")
+        return
+      }
+
+      if (previewImageUrl) {
+        URL.revokeObjectURL(previewImageUrl)
+      }
+
+      const url = URL.createObjectURL(blob)
+      setPreviewImageUrl(url)
+      setPreviewOpen(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "操作失败，请重试")
+    } finally {
+      setActionPending((current) => ({ ...current, previewImage: false }))
+    }
+  }
+
+  function handlePreviewClose(open: boolean) {
+    setPreviewOpen(open)
+    if (!open && previewImageUrl) {
+      URL.revokeObjectURL(previewImageUrl)
+      setPreviewImageUrl(null)
+    }
+  }
+
   const actionsDisabled = !validInput || !validResult
 
   return (
@@ -315,15 +451,21 @@ function CalculatorResult({ control }: CalculatorResultProps) {
           input={validInput}
           renewalCurrency={renewalCurrency}
           captureRef={resultCardRef}
-          onPreviewImage={undefined}
+          onPreviewImage={actionsDisabled ? undefined : handlePreviewImage}
           onDownloadImage={actionsDisabled ? undefined : handleDownloadImage}
           onCopyImage={actionsDisabled ? undefined : handleCopyImage}
           onCopyMarkdown={actionsDisabled ? undefined : handleCopyMarkdown}
           isDownloadingImage={actionPending.downloadImage}
           isCopyingImage={actionPending.copyImage}
           isCopyingMarkdown={actionPending.copyMarkdown}
+          isPreviewingImage={actionPending.previewImage}
         />
       </div>
+      <ImagePreviewDialog
+        open={previewOpen}
+        onOpenChange={handlePreviewClose}
+        imageUrl={previewImageUrl}
+      />
     </div>
   )
 }
