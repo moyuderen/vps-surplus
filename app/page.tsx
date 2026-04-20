@@ -65,7 +65,7 @@ export default function Home() {
       />
 
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4 lg:pt-[10vh]">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-2">
               <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">VPS 剩余价值计算器</h1>
