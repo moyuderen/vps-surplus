@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Check, Monitor, MoonStar, SunMedium } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -20,8 +21,13 @@ const themeOptions = [
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
   const selectedTheme = theme ?? "system"
-  const SelectedIcon = themeOptions.find((option) => option.value === selectedTheme)?.icon ?? Monitor
+  const SelectedIcon = mounted
+    ? themeOptions.find((option) => option.value === selectedTheme)?.icon ?? Monitor
+    : Monitor
+
+  React.useEffect(() => { setMounted(true) }, [])
 
   return (
     <DropdownMenu>
@@ -43,7 +49,7 @@ export function ThemeToggle() {
               >
                 <Icon data-icon="inline-start" />
                 {option.label}
-                {isSelected ? <Check data-icon="inline-end" /> : null}
+                {mounted && isSelected ? <Check data-icon="inline-end" /> : null}
               </DropdownMenuItem>
             )
           })}
