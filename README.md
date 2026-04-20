@@ -143,22 +143,70 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.com
 
 ## 部署说明
 
-这是一个标准的 Next.js 应用，可部署到：
+项目已配置静态导出（`output: "export"`），构建后生成纯静态文件，可部署到任何支持静态托管的平台。
 
-- Vercel
-- 支持 Node.js 的云服务器
-- 自托管前端运行环境
+### VPS Docker 部署
 
-生产构建命令：
+#### 1. 克隆项目
 
 ```bash
-npm run build
+git clone <repo-url>
+cd vps-surplus
 ```
 
-生产启动命令：
+#### 2. 配置环境变量
 
 ```bash
-npm run start
+cp .env.example .env
+```
+
+编辑 `.env`：
+
+```bash
+# 站点域名（构建时注入，用于 canonical、sitemap、OG 等元信息）
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
+
+# 容器映射到本地的端口（默认 3001）
+PORT=3001
+```
+
+#### 3. 一键部署
+
+```bash
+chmod +x deploy.sh
+sudo ./deploy.sh
+```
+
+脚本会自动安装 Docker（如未安装）、构建镜像并启动容器。
+
+容器启动后监听 `http://127.0.0.1:3001`。
+
+#### 4. 配置反向代理
+
+以 Caddy 为例，在 Caddyfile 中添加：
+
+```caddyfile
+your-domain.com {
+    reverse_proxy 127.0.0.1:3001
+}
+```
+
+Caddy 会自动处理 HTTPS 证书。
+
+#### 手动操作
+
+```bash
+# 构建并启动
+docker compose up -d --build
+
+# 停止
+docker compose down
+
+# 查看状态
+docker compose ps
+
+# 查看日志
+docker compose logs
 ```
 
 ## 后续可扩展方向
