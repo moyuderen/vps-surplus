@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { toBlob } from "html-to-image"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { motion, AnimatePresence } from "framer-motion"
@@ -68,6 +68,7 @@ import {
   SUPPORTED_CURRENCIES,
   type SupportedCurrency,
 } from "@/lib/vps/constants"
+import { fetchExchangeRateToCNY } from "@/lib/vps/exchange-rate"
 import { formatDateValue, getDateFromValue } from "@/lib/vps/date"
 import { formatCurrency, formatNumber } from "@/lib/vps/formatters"
 import { vpsFormSchema, type VpsFormValues } from "@/lib/vps/schema"
@@ -477,6 +478,32 @@ export function VpsSurplusCalculator() {
     mode: "onChange",
   })
 
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(false)
+
+  const handleCurrencyChange = useCallback(
+    async (value: SupportedCurrency) => {
+      form.setValue("renewalCurrency", value, { shouldDirty: true })
+
+      if (value === "CNY") {
+        form.setValue("exchangeRate", 1, { shouldValidate: true, shouldDirty: true })
+        return
+      }
+
+      setExchangeRateLoading(true)
+      try {
+        const rate = await fetchExchangeRateToCNY(value)
+        form.setValue("exchangeRate", rate, { shouldValidate: true, shouldDirty: true })
+      } catch {
+        toast.error("汇率获取失败，请手动输入汇率", {
+          description: "无法从接口获取最新汇率，你可以自行输入或稍后再试。",
+        })
+      } finally {
+        setExchangeRateLoading(false)
+      }
+    },
+    [form],
+  )
+
   const renewalCurrency = useWatch({
     control: form.control,
     name: "renewalCurrency",
@@ -585,12 +612,8 @@ export function VpsSurplusCalculator() {
                     render={({ field }) => (
                       <Select
                         value={field.value}
-                        onValueChange={(value: SupportedCurrency) => {
-                          field.onChange(value)
-                          if (value === "CNY") {
-                            form.setValue("exchangeRate", 1, { shouldValidate: true, shouldDirty: true })
-                          }
-                        }}
+                        onValueChange={(value: SupportedCurrency) => handleCurrencyChange(value)}
+                        disabled={exchangeRateLoading}
                       >
                         <SelectTrigger
                           id="renewalCurrency"
@@ -645,15 +668,21 @@ export function VpsSurplusCalculator() {
                   <ArrowLeftRight />
                   汇率
                 </FieldLabel>
-                <Input
-                  id="exchangeRate"
-                  type="number"
-                  step="0.000001"
-                  min="0"
-                  disabled={renewalCurrency === "CNY"}
-                  aria-invalid={!!form.formState.errors.exchangeRate}
-                  {...form.register("exchangeRate", { valueAsNumber: true })}
-                />
+                <div className="relative">
+                  <Input
+                    id="exchangeRate"
+                    type="number"
+                    step="0.000001"
+                    min="0"
+                    disabled={renewalCurrency === "CNY" || exchangeRateLoading}
+                    aria-invalid={!!form.formState.errors.exchangeRate}
+                    className={exchangeRateLoading ? "pr-8" : undefined}
+                    {...form.register("exchangeRate", { valueAsNumber: true })}
+                  />
+                  {exchangeRateLoading && (
+                    <RefreshCw className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  )}
+                </div>
                 <FieldError errors={[form.formState.errors.exchangeRate]} />
               </Field>
 
