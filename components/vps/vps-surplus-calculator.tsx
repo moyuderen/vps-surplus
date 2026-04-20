@@ -12,6 +12,7 @@ import {
   CalendarSearch,
   CalendarSync,
   HandCoins,
+  ExternalLink,
   RefreshCw,
   X,
   ZoomIn,
@@ -68,7 +69,7 @@ import {
   SUPPORTED_CURRENCIES,
   type SupportedCurrency,
 } from "@/lib/vps/constants"
-import { fetchExchangeRateToCNY } from "@/lib/vps/exchange-rate"
+import { fetchExchangeRateToCNY, getExchangeRateUrl } from "@/lib/vps/exchange-rate"
 import { formatDateValue, getDateFromValue } from "@/lib/vps/date"
 import { formatCurrency, formatNumber } from "@/lib/vps/formatters"
 import { vpsFormSchema, type VpsFormValues } from "@/lib/vps/schema"
@@ -702,6 +703,16 @@ export function VpsSurplusCalculator() {
                   />
                   {exchangeRateLoading && (
                     <RefreshCw className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  )}
+                  {!exchangeRateLoading && getExchangeRateUrl(renewalCurrency) && (
+                    <a
+                      href={getExchangeRateUrl(renewalCurrency)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="在 XE.com 查询汇率"
+                    >
+                      <ExternalLink className="absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground hover:text-foreground" />
+                    </a>
                   )}
                 </div>
                 <FieldError errors={[form.formState.errors.exchangeRate]} />

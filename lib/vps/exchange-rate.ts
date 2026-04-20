@@ -4,6 +4,11 @@ type FrankfurterResponse = {
   rates: Record<string, number>
 }
 
+export function getExchangeRateUrl(currency: SupportedCurrency): string | null {
+  if (currency === "CNY") return null
+  return `https://www.xe.com/currencyconverter/convert/?Amount=1&From=${currency}&To=CNY`
+}
+
 export async function fetchExchangeRateToCNY(currency: SupportedCurrency): Promise<number> {
   const response = await fetch(
     `https://api.frankfurter.dev/v1/latest?from=${currency}&to=CNY`,

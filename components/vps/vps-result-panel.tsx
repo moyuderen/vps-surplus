@@ -3,6 +3,7 @@ import { intervalToDuration } from "date-fns"
 import {
   ArrowLeftRight,
   BadgeDollarSign,
+  ExternalLink,
   CalendarClock,
   CalendarSync,
   Copy,
@@ -32,6 +33,7 @@ import type { VpsCalculationInput, VpsCalculationResult } from "@/lib/vps/calcul
 import type { SupportedCurrency } from "@/lib/vps/constants"
 import { CURRENCY_LABELS, RENEWAL_CYCLES } from "@/lib/vps/constants"
 import { parseDateOnly } from "@/lib/vps/date"
+import { getExchangeRateUrl } from "@/lib/vps/exchange-rate"
 import { formatCurrency, formatNumber } from "@/lib/vps/formatters"
 
 type VpsResultPanelProps = {
@@ -205,7 +207,23 @@ export function VpsResultPanel({
                     <ArrowLeftRight />
                     汇率
                   </span>
-                  <span className={valueClassName}>{exchangeRateLabel}</span>
+                  <span className={valueClassName}>
+                    {exchangeRateLabel}
+                    {(() => {
+                      const url = getExchangeRateUrl(renewalCurrency)
+                      return url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="在 XE.com 查询汇率"
+                          className="ml-1.5 inline-flex align-middle text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </a>
+                      ) : null
+                    })()}
+                  </span>
                 </div>
               </div>
             </div>
