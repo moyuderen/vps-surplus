@@ -478,7 +478,23 @@ export function VpsSurplusCalculator() {
     mode: "onChange",
   })
 
-  const [exchangeRateLoading, setExchangeRateLoading] = useState(false)
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(true)
+
+  useState(() => {
+    const defaultCurrency = DEFAULT_VALUES.renewalCurrency
+    fetchExchangeRateToCNY(defaultCurrency)
+      .then((rate) => {
+        form.setValue("exchangeRate", rate, { shouldValidate: true })
+      })
+      .catch(() => {
+        toast.error("汇率获取失败，请手动输入汇率", {
+          description: "无法从接口获取最新汇率，你可以自行输入或稍后再试。",
+        })
+      })
+      .finally(() => {
+        setExchangeRateLoading(false)
+      })
+  })
 
   const handleCurrencyChange = useCallback(
     async (value: SupportedCurrency) => {
