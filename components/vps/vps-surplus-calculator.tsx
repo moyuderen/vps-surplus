@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toBlob } from "html-to-image"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { motion, AnimatePresence } from "framer-motion"
@@ -478,23 +478,28 @@ export function VpsSurplusCalculator() {
     mode: "onChange",
   })
 
-  const [exchangeRateLoading, setExchangeRateLoading] = useState(true)
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(false)
+  const initialFetchDone = useRef(false)
 
-  useState(() => {
+  useEffect(() => {
+    if (initialFetchDone.current) return
+    initialFetchDone.current = true
     const defaultCurrency = DEFAULT_VALUES.renewalCurrency
+    if (defaultCurrency === "CNY") return
+    let cancelled = false
     fetchExchangeRateToCNY(defaultCurrency)
       .then((rate) => {
+        if (cancelled) return
         form.setValue("exchangeRate", rate, { shouldValidate: true })
       })
       .catch(() => {
+        if (cancelled) return
         toast.error("汇率获取失败，请手动输入汇率", {
           description: "无法从接口获取最新汇率，你可以自行输入或稍后再试。",
         })
       })
-      .finally(() => {
-        setExchangeRateLoading(false)
-      })
-  })
+    return () => { cancelled = true }
+  }, [form])
 
   const handleCurrencyChange = useCallback(
     async (value: SupportedCurrency) => {
