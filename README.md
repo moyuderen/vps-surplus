@@ -150,7 +150,7 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.com
 #### 1. 克隆项目
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/moyuderen/vps-surplus
 cd vps-surplus
 ```
 
